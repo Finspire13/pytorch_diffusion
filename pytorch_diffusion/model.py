@@ -294,18 +294,29 @@ class Model(nn.Module):
         temb = self.temb.dense[0](temb)
         temb = nonlinearity(temb)
         temb = self.temb.dense[1](temb)
+        
 
         # downsampling
         hs = [self.conv_in(x)]
+        
+        if return_features:
+            features = [[hs[-1], 'conv_in']]
+            
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):
                 h = self.down[i_level].block[i_block](hs[-1], temb)
                 if len(self.down[i_level].attn) > 0:
                     h = self.down[i_level].attn[i_block](h)
                 hs.append(h)
+                
+                if return_features:
+                    features.append([[hs[-1], f'down_level{i_level}_block{i_block}']]
+                                    
             if i_level != self.num_resolutions-1:
                 hs.append(self.down[i_level].downsample(hs[-1]))
-            
+                                    
+                if return_features:
+                    features.append([[hs[-1], f'down_down']]
         # middle
         h = hs[-1]
         h = self.mid.block_1(h, temb)
@@ -313,8 +324,8 @@ class Model(nn.Module):
         h = self.mid.block_2(h, temb)
         
         if return_features:
-            features = list(hs)
-            features.append(h)
+            features.append([[h, 'mid']]
+
             
         # upsampling
         for i_level in reversed(range(self.num_resolutions)):
@@ -324,12 +335,13 @@ class Model(nn.Module):
                 if len(self.up[i_level].attn) > 0:
                     h = self.up[i_level].attn[i_block](h)
                 if return_features:
-                    features.append(h)
+                    features.append([[h, f'up_level{i_level}_block{i_block}']]
+                               
             if i_level != 0:
                 h = self.up[i_level].upsample(h)
                 if return_features:
-                    features.append(h)
-                    
+                    features.append([[h, f'up_up']]
+                                    
         # end
         h = self.norm_out(h)
         h = nonlinearity(h)
