@@ -286,7 +286,7 @@ class Model(nn.Module):
                                         padding=1)
 
 
-    def forward(self, x, t):
+    def forward(self, x, t, return_features=False):
         assert x.shape[2] == x.shape[3] == self.resolution
 
         # timestep embedding
@@ -305,13 +305,17 @@ class Model(nn.Module):
                 hs.append(h)
             if i_level != self.num_resolutions-1:
                 hs.append(self.down[i_level].downsample(hs[-1]))
-
+            
         # middle
         h = hs[-1]
         h = self.mid.block_1(h, temb)
         h = self.mid.attn_1(h)
         h = self.mid.block_2(h, temb)
-
+        
+        if return_features:
+            features = list(hs)
+            features.append(h)
+            
         # upsampling
         for i_level in reversed(range(self.num_resolutions)):
             for i_block in range(self.num_res_blocks+1):
@@ -319,11 +323,19 @@ class Model(nn.Module):
                     torch.cat([h, hs.pop()], dim=1), temb)
                 if len(self.up[i_level].attn) > 0:
                     h = self.up[i_level].attn[i_block](h)
+                if return_features:
+                    features.append(h)
             if i_level != 0:
                 h = self.up[i_level].upsample(h)
-
+                if return_features:
+                    features.append(h)
+                    
         # end
         h = self.norm_out(h)
         h = nonlinearity(h)
         h = self.conv_out(h)
-        return h
+        
+        if return_features:
+            return h, features
+        else:
+            return h
