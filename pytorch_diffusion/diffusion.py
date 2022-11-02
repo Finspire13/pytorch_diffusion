@@ -124,6 +124,7 @@ class Diffusion(object):
         self.posterior_mean_coef2 = posterior_mean_coef2
         self.sqrt_alphas = np.sqrt(alphas)
         self.sqrt_one_minus_alphas = np.sqrt(1. - alphas)
+        self.posterior_variance = posterior_variance
 
         if self.model_var_type == "fixedlarge":
             self.logvar = np.log(np.append(posterior_variance[1], betas[1:]))
