@@ -117,6 +117,7 @@ class Diffusion(object):
         posterior_mean_coef1 = betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod)
         posterior_mean_coef2 = (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod)
 
+        self.betas = betas
         self.alphas = alphas
         self.sqrt_recip_alphas_cumprod = sqrt_recip_alphas_cumprod
         self.sqrt_recipm1_alphas_cumprod = sqrt_recipm1_alphas_cumprod
