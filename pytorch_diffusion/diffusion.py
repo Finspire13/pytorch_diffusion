@@ -89,6 +89,7 @@ def denoising_step(x, t, *,
 
 def denoising_step_combined(x, t, *,
                    models,
+                   weights,
                    logvar,
                    sqrt_recip_alphas_cumprod,
                    sqrt_recipm1_alphas_cumprod,
@@ -102,7 +103,9 @@ def denoising_step_combined(x, t, *,
     # equivalently, predicts x_0 and uses it to compute mean of the posterior
     # 1. predict eps via model
     model_outputs = [model(x, t).unsqueeze(0) for model in models]
-    model_output = torch.cat(model_outputs, dim=0).mean(0)
+    model_outputs = torch.cat(model_outputs, dim=0)
+    weight = weights[:,t.item()] # only for n=1
+    model_output = (model_outputs * weight).sum(0)
     # 2. predict clipped x_0
     # (follows from x_t=sqrt_alpha_cumprod*x_0 + sqrt_one_minus_alpha*eps)
     pred_xstart = (extract(sqrt_recip_alphas_cumprod, t, x.shape)*x -
