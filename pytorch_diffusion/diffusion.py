@@ -127,9 +127,9 @@ def denoising_step_combined(x, t, *,
     
     return_value = [sample]
     if return_pred_xstart:
-        return return_value.append(pred_xstart)
+        return_value.append(pred_xstart)
     if return_model_outputs:
-        return return_value.append(model_outputs)
+        return_value.append(model_outputs)
     return return_value
 
 
