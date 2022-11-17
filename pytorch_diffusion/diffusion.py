@@ -95,7 +95,8 @@ def denoising_step_combined(x, t, *,
                    sqrt_recipm1_alphas_cumprod,
                    posterior_mean_coef1,
                    posterior_mean_coef2,
-                   return_pred_xstart=False):
+                   return_pred_xstart=False,
+                   return_model_outputs=False):
     """
     Sample from p(x_{t-1} | x_t)
     """
@@ -123,9 +124,13 @@ def denoising_step_combined(x, t, *,
     mask = mask.reshape((x.shape[0],)+(1,)*(len(x.shape)-1))
     sample = mean + mask*torch.exp(0.5*logvar)*noise
     sample = sample.float()
+    
+    return_value = [sample]
     if return_pred_xstart:
-        return sample, pred_xstart
-    return sample
+        return return_value.append(pred_xstart)
+    if return_model_outputs:
+        return return_value.append(model_outputs)
+    return return_value
 
 
 class Diffusion(object):
