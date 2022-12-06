@@ -133,6 +133,54 @@ def denoising_step_combined(x, t, *,
     return return_value
 
 
+def denoising_step_combined_with_weight_maps(x, t, *,
+                   models,
+                   weight_maps,
+                   logvar,
+                   sqrt_recip_alphas_cumprod,
+                   sqrt_recipm1_alphas_cumprod,
+                   posterior_mean_coef1,
+                   posterior_mean_coef2,
+                   return_pred_xstart=False,
+                   return_model_outputs=False):
+    """
+    Sample from p(x_{t-1} | x_t)
+    """
+    # instead of using eq. (11) directly, follow original implementation which,
+    # equivalently, predicts x_0 and uses it to compute mean of the posterior
+    # 1. predict eps via model
+    model_outputs = [model(x, t).unsqueeze(0) for model in models]
+    model_outputs = torch.cat(model_outputs, dim=0)
+    
+    weight = weight_maps.unsqueeze(1).unsqueeze(1) # only for n=1    #(3, 1, 1, 256, 256)
+    
+    model_output = (model_outputs * weight).sum(0)
+    # 2. predict clipped x_0
+    # (follows from x_t=sqrt_alpha_cumprod*x_0 + sqrt_one_minus_alpha*eps)
+    pred_xstart = (extract(sqrt_recip_alphas_cumprod, t, x.shape)*x -
+                   extract(sqrt_recipm1_alphas_cumprod, t, x.shape)*model_output)
+    pred_xstart = torch.clamp(pred_xstart, -1, 1)
+    # 3. compute mean of q(x_{t-1} | x_t, x_0) (eq. (6))
+    mean = (extract(posterior_mean_coef1, t, x.shape)*pred_xstart +
+            extract(posterior_mean_coef2, t, x.shape)*x)
+
+    logvar = extract(logvar, t, x.shape)
+
+    # sample - return mean for t==0
+    noise = torch.randn_like(x)
+    mask = 1-(t==0).float()
+    mask = mask.reshape((x.shape[0],)+(1,)*(len(x.shape)-1))
+    sample = mean + mask*torch.exp(0.5*logvar)*noise
+    sample = sample.float()
+    
+    return_value = [sample]
+    if return_pred_xstart:
+        return_value.append(pred_xstart)
+    if return_model_outputs:
+        return_value.append(model_outputs)
+    return return_value
+
+
 class Diffusion(object):
     def __init__(self, diffusion_config, model_config, device=None):
         self.init_diffusion_parameters(**diffusion_config)
